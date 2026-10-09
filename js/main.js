@@ -15,7 +15,6 @@
   const lightboxCaption = document.getElementById("lightboxCaption");
   const bootVideo = document.getElementById("bootVideo");
   const startInvestigation = document.getElementById("startInvestigation");
-  const openCaseFile = document.getElementById("openCaseFile");
 
   if (bootVideo && matchMedia("(prefers-reduced-motion: reduce)").matches) {
     bootVideo.addEventListener("loadeddata", () => bootVideo.pause(), { once: true });
@@ -37,53 +36,44 @@
   });
 
   bootVideo.addEventListener("ended", () => {
-    boot.classList.remove("is-playing");
-    boot.classList.add("is-ready");
-    openCaseFile.focus();
+    dismissBoot();
   });
 
   function dismissBoot() {
     if (boot.classList.contains("is-dismissed")) return;
-    if (!boot.classList.contains("is-scanning")) {
-      boot.classList.add("is-scanning");
-      setTimeout(() => {
-        scrollTo(0, 0);
-        boot.classList.add("is-dismissed");
-        body.classList.remove("intro-locked");
-        body.classList.add("case-open");
-        bootVideo.pause();
-        if (window.gsap && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
-          gsap.fromTo(".hero__sub, .hero__lead, .hero__actions", {
-            opacity: 0,
-            y: 22,
-          }, {
-            opacity: 1,
-            y: 0,
-            duration: .65,
-            stagger: .12,
-            delay: .12,
-            ease: "power3.out",
-          });
-          gsap.fromTo(".hero__facts > div", {
-            opacity: 0,
-            y: 28,
-            rotateX: -18,
-          }, {
-            opacity: 1,
-            y: 0,
-            rotateX: 0,
-            duration: .58,
-            stagger: .09,
-            delay: .28,
-            ease: "back.out(1.35)",
-          });
-        }
-        if (window.ScrollTrigger) ScrollTrigger.refresh();
-      }, 1250);
+    scrollTo(0, 0);
+    boot.classList.add("is-dismissed");
+    body.classList.remove("intro-locked");
+    body.classList.add("case-open");
+    bootVideo.pause();
+    if (window.gsap && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      gsap.fromTo(".hero__sub, .hero__lead, .hero__actions", {
+        opacity: 0,
+        y: 22,
+      }, {
+        opacity: 1,
+        y: 0,
+        duration: .65,
+        stagger: .12,
+        delay: .12,
+        ease: "power3.out",
+      });
+      gsap.fromTo(".hero__facts > div", {
+        opacity: 0,
+        y: 28,
+        rotateX: -18,
+      }, {
+        opacity: 1,
+        y: 0,
+        rotateX: 0,
+        duration: .58,
+        stagger: .09,
+        delay: .28,
+        ease: "back.out(1.35)",
+      });
     }
+    if (window.ScrollTrigger) ScrollTrigger.refresh();
   }
-
-  openCaseFile.addEventListener("click", dismissBoot);
 
   function updateProgress() {
     const root = document.documentElement;
