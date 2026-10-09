@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="AuraWiper static reverse-engineering case study by Mostafa Galal.">
+  <title>AuraWiper — Anatomy of a Windows Destructive Wiper</title>
+  <script>if("scrollRestoration" in history)history.scrollRestoration="manual";scrollTo(0,0);</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23050507'/%3E%3Cpath d='M8 44 26 12h12l18 32-7 8-8-15H23l-8 15z' fill='%23ef233c'/%3E%3Cpath d='M27 30h10l-5-10z' fill='%23f2eee8'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="intro-locked">
+  <div class="grain" aria-hidden="true"></div>
+  <div class="scanlines" aria-hidden="true"></div>
+  <div class="edge-failure" aria-hidden="true"></div>
+
+  <div class="boot" id="boot" aria-label="AuraWiper investigation introduction">
+    <div class="boot__cover" id="bootCover">
+      <div class="boot__cover-copy">
+        <span>CASE MERIDIAN-017</span>
+        <button class="boot__start" id="startInvestigation" type="button">START INVESTIGATION</button>
+        <small>Video and sound begin on activation</small>
+      </div>
+    </div>
+    <video class="boot__video" id="bootVideo" playsinline preload="auto" poster="assets/backgrounds/hero-disk.png" aria-hidden="true">
+      <source src="assets/video/aurawiper-intro.mp4" type="video/mp4">
+    </video>
+    <div class="boot__scope">
+      <span>FORENSIC INTAKE // MERIDIAN-017</span>
+      <span>03:14 CET</span>
+    </div>
+    <div class="boot__body">
+      <p class="boot__status">ENDPOINT AVAILABILITY EVENT</p>
+      <h1 class="sr-only">AuraWiper</h1>
+      <div class="boot__specimen" aria-hidden="true"><span>AURA EVENT / CASE 017</span><i></i></div>
+      <p class="boot__line">340 systems unavailable. No ransom note. One interrupted host remains.</p>
+      <button class="boot__open" id="openCaseFile" type="button">Open preserved case file</button>
+      <div class="boot__sequence" aria-hidden="true">
+        <span>[01] mounting preserved executable metadata</span>
+        <span>[02] loading Ghidra evidence index</span>
+        <span>[03] destructive execution disabled</span>
+        <span>[04] opening static investigation</span>
+      </div>
+    </div>
+    <p class="boot__notice">Fictional incident scenario · static analysis evidence only</p>
+  </div>
+
+  <header class="site-hud" aria-label="Case status">
+    <a href="#top" class="site-mark">AW<span>/</span>017</a>
+    <div class="hud-state"><span id="hudPhase">INTAKE</span><b id="hudProgress">00%</b></div>
+    <button class="atmosphere" id="atmosphere" type="button" aria-pressed="false">Suppress interference</button>
+  </header>
+
+  <nav class="progress-rail" aria-label="Investigation progress"><span id="progressFill"></span></nav>
+
+  <main id="top">
+    <section class="hero chapter" data-phase="INCIDENT">
+      <div class="hero__signal" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="hero__content">
+        <p class="case-id">CASE MERIDIAN-017 / STATIC REVERSE ENGINEERING</p>
+        <h1 class="hero-title" aria-label="AuraWiper"><span class="hero-title__line hero-title__line--outline" aria-hidden="true"><i>A</i><i>u</i><i>r</i><i>a</i></span><span class="hero-title__line" aria-hidden="true"><i>W</i><i>i</i><i>p</i><i>e</i><i>r</i></span></h1>
+        <p class="hero__sub">Anatomy of a Windows Destructive Wiper</p>
+        <p class="hero__lead">A preserved executable. A failed fleet. A forensic reconstruction of persistence, defense suppression, and boot destruction.</p>
+        <div class="hero__facts" aria-label="Case facts">
+          <div><strong>340</strong><span>fictional endpoints</span></div>
+          <div><strong>&lt;20m</strong><span>incident window</span></div>
+          <div><strong>15/15</strong><span>findings recovered</span></div>
+          <div><strong>GHIDRA</strong><span>analysis platform</span></div>
+        </div>
+      </div>
+      <div class="hero__footer">
+        <span>Analysis and writeup by Mostafa Galal</span>
+        <span>Scroll to enter the evidence chain</span>
+      </div>
+    </section>
+
+    <section class="chapter incident" id="incident" data-phase="TRIAGE">
+      <div class="chapter__inner">
+        <div class="section-index"><span>00</span><b>Incident intake</b></div>
+        <div class="incident__grid">
+          <div>
+            <p class="question">What happened before the host went dark?</p>
+            <p class="answer-strip"><span>Answer</span><strong>A destructive availability event—not a ransomware encryption workflow.</strong></p>
+            <h2>No encryption. No demand. Only loss of availability.</h2>
+            <p>At 03:14 CET, Meridian Cold Chain Logistics reports a rapid endpoint failure. One workstation loses power before the suspected executable completes, preserving a narrow static-analysis opportunity.</p>
+            <p class="qualification"><strong>Scenario boundary</strong> Meridian is fictional. The incident scale is narrative context, not observed telemetry. Every technical conclusion that follows is limited to recovered code.</p>
+          </div>
+          <div class="incident-console" aria-label="Incident summary">
+            <div class="console-bar"><span>meridian-ir / intake</span><i>read only</i></div>
+            <dl>
+              <div><dt>Ransom note</dt><dd>not observed</dd></div>
+              <div><dt>C2 beacon</dt><dd>not established</dd></div>
+              <div><dt>Boot state</dt><dd class="danger">unavailable</dd></div>
+              <div><dt>Evidence mode</dt><dd>static binary analysis</dd></div>
+              <div><dt>Primary question</dt><dd>wiper or ransomware?</dd></div>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter evidence-chapter" id="fingerprints" data-phase="FINGERPRINTS">
+      <div class="chapter__inner">
+        <div class="section-index"><span>01</span><b>Execution fingerprints</b></div>
+        <p class="question">What did the compiler leave behind, and how does the sample coordinate itself?</p>
+        <p class="answer-strip"><span>Answer</span><strong><code>SF-Verif.pdb</code> and two global coordination mutexes.</strong></p>
+        <h2>The first clues were names, not behavior.</h2>
+        <div class="finding-grid">
+          <article class="finding-card">
+            <span class="finding-no">Finding 01</span>
+            <h3>SF-Verif.pdb</h3>
+            <p>An embedded CodeView development artifact. Useful for correlation, but insufficient for attribution.</p>
+            <dl class="artifact-record"><div><dt>State</dt><dd>DEFINED</dd></div><div><dt>Address</dt><dd><code>140060A64</code></dd></div><div><dt>Type</dt><dd>string · 67 bytes · true</dd></div><div class="artifact-record__path"><dt>PDB path</dt><dd><code>C:\Users\prostone\Desktop\all\Malware-67-main\Release\SF-Verif.pdb</code></dd></div></dl>
+            <button class="evidence-button" data-image="assets/evidence/01_1.png" data-caption="Finding 01 — Ghidra evidence for the embedded PDB filename.">Inspect Ghidra evidence</button>
+          </article>
+          <article class="finding-card">
+            <span class="finding-no">Finding 02</span>
+            <h3>Two global mutexes</h3>
+            <code>Global\SFV67PayloadLeader</code>
+            <code>Global\SFVDeployOnce</code>
+            <p>The names suggest payload leadership and single-deployment coordination; exact semantics remain code-path dependent.</p>
+            <button class="evidence-button" data-image="assets/evidence/02_2.png" data-caption="Finding 02 — named mutex evidence recovered in Ghidra.">Inspect Ghidra evidence</button>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter" id="persistence" data-phase="PERSISTENCE">
+      <div class="chapter__inner">
+        <div class="section-index"><span>02</span><b>Persistence investigation</b></div>
+        <p class="question">How does the sample attempt to survive logon and restart?</p>
+        <p class="answer-strip"><span>Answer</span><strong>Four techniques: HKCU Run, HKLM Run, Startup folder, and Winlogon Shell.</strong></p>
+        <h2>Four routes lead back into execution.</h2>
+        <p class="lede">The challenge counts four persistence configurations, not every Registry value written inside them. Repeated entries are implementation detail; the mechanisms are the finding.</p>
+        <div class="persistence-map" id="persistenceMap">
+          <button class="persist-node is-active" data-persist="hkcu"><span>01</span><strong>HKCU Run</strong><small>User logon</small></button>
+          <button class="persist-node" data-persist="hklm"><span>02</span><strong>HKLM Run</strong><small>Machine-wide</small></button>
+          <button class="persist-node" data-persist="startup"><span>03</span><strong>Startup folder</strong><small>APPDATA path</small></button>
+          <button class="persist-node" data-persist="shell"><span>04</span><strong>Winlogon Shell</strong><small>Logon sequence</small></button>
+        </div>
+        <button class="persist-replay" id="replayPersistence" type="button">Replay four-technique sequence</button>
+        <div class="persist-detail" id="persistDetail">
+          <span>Finding 03 / mechanism 01</span><h3>HKCU Run Key</h3>
+          <code>HKCU\Software\Microsoft\Windows\CurrentVersion\Run</code>
+          <p>Attempts to configure autorun values for the current user. This route is distinct from machine-wide persistence even where the loops and value data are similar.</p>
+        </div>
+        <div class="evidence-gallery">
+          <button data-image="assets/evidence/03_3.png" data-caption="Finding 03 — first Ghidra view of the persistence configuration."><img src="assets/evidence/03_3.png" alt="Ghidra persistence evidence, view one" loading="lazy"><span>Persistence evidence A</span></button>
+          <button data-image="assets/evidence/04_3.png" data-caption="Finding 03 — additional persistence path evidence in Ghidra."><img src="assets/evidence/04_3.png" alt="Ghidra persistence evidence, view two" loading="lazy"><span>Persistence evidence B</span></button>
+          <button data-image="assets/evidence/05_3.png" data-caption="Finding 03 — Ghidra evidence completing the four-configuration finding."><img src="assets/evidence/05_3.png" alt="Ghidra persistence evidence, view three" loading="lazy"><span>Persistence evidence C</span></button>
+        </div>
+        <p class="finding-line"><strong>Finding 03</strong><span>Persistence configurations</span><b>4</b><code>FUN_140013E00 / FUN_1400130F0</code></p>
+        <div class="function-links"><button data-function="FUN_140013E00"><code>FUN_140013E00</code><span>Registry, Startup, and Winlogon persistence</span></button><button data-function="FUN_1400130F0"><code>FUN_1400130F0</code><span>Payload copy deployment</span></button></div>
+      </div>
+    </section>
+
+    <section class="chapter suppression" id="suppression" data-phase="DEFENSE SUPPRESSION">
+      <div class="chapter__inner">
+        <div class="section-index"><span>03</span><b>Defense suppression</b></div>
+        <p class="question">What happens when an analyst opens a monitoring tool?</p>
+        <p class="answer-strip"><span>Answer</span><strong><code>FUN_140011BE0</code> repeatedly terminates five monitoring targets and raises its priority.</strong></p>
+        <h2>The sample does not check once. It keeps watching.</h2>
+        <div class="suppression-layout">
+          <div class="process-monitor" id="processMonitor">
+            <div class="console-bar"><span>FUN_140011BE0 / monitor loop</span><i>illustrative simulation</i></div>
+            <div class="process-row" data-process><span>taskmgr.exe</span><b>VISIBLE</b></div>
+            <div class="process-row" data-process><span>ProcessHacker.exe</span><b>VISIBLE</b></div>
+            <div class="process-row" data-process><span>procexp.exe</span><b>VISIBLE</b></div>
+            <div class="process-row" data-process><span>procexp64.exe</span><b>VISIBLE</b></div>
+            <div class="process-row" data-process><span>powershell.exe</span><b>VISIBLE</b></div>
+            <button id="runSuppression" type="button">Run illustrative monitoring cycle</button>
+          </div>
+          <div class="technical-copy">
+            <p>The first loop sleeps for 20 seconds. Later iterations reduce the delay to 100 milliseconds, repeatedly passing process names to <code>FUN_140010570</code>.</p>
+            <p>The same routine attempts to set its own process to <code>REALTIME_PRIORITY_CLASS</code>. Success depends on environment and permissions.</p>
+            <div class="xref-meter"><span>Observed references</span><strong>9</strong><div><b style="--w:88.8%">8 CALL</b><i>1 DATA</i></div><small>The DATA reference is metadata, not an invocation.</small></div>
+          </div>
+        </div>
+        <div class="evidence-gallery evidence-gallery--two">
+          <button data-image="assets/evidence/06_4.png" data-caption="Finding 04 — process monitoring and suppression function at 0x140011BE0."><img src="assets/evidence/06_4.png" alt="Ghidra monitoring loop evidence" loading="lazy"><span>Finding 04 · 0x140011BE0</span></button>
+          <button data-image="assets/evidence/07_5.png" data-caption="Finding 05 — eight CALL references and one non-call DATA reference."><img src="assets/evidence/07_5.png" alt="Ghidra cross-reference evidence" loading="lazy"><span>Finding 05 · 8 static calls</span></button>
+        </div>
+        <div class="function-links"><button data-function="FUN_140011BE0"><code>FUN_140011BE0</code><span>Monitoring loop</span></button><button data-function="FUN_140010570"><code>FUN_140010570</code><span>Process termination helper</span></button></div>
+      </div>
+    </section>
+
+    <section class="chapter controller" id="controller" data-phase="PAYLOAD CONTROL">
+      <div class="chapter__inner">
+        <div class="section-index"><span>04</span><b>Destructive payload controller</b></div>
+        <p class="question">Which function turns isolated capabilities into a destructive sequence?</p>
+        <p class="answer-strip"><span>Answer</span><strong><code>FUN_140014E40</code>, using confirmed millisecond delays through <code>FUN_14000F370</code>.</strong></p>
+        <h2>One controller. One wrapper. Nine scheduled workers.</h2>
+        <div class="architecture" id="architecture">
+          <button class="arch-node arch-node--controller is-selected" data-arch="controller" data-function="FUN_140014E40"><span>Controller</span><code>FUN_140014E40</code></button>
+          <div class="arch-line"></div>
+          <button class="arch-node arch-node--wrapper" data-arch="wrapper" data-function="FUN_14000F370"><span>Execution wrapper</span><code>FUN_14000F370</code></button>
+          <div class="worker-field">
+            <button class="worker known" data-arch="mbr" data-function="FUN_140011AA0"><code>140011AA0</code><span>Raw disk overwrite</span></button>
+            <button class="worker known" data-function="FUN_14000FCE0"><code>14000FCE0</code><span>Audio endpoint scan</span></button>
+            <button class="worker known" data-function="FUN_14000FE80"><code>14000FE80</code><span>Keyboard suppression</span></button>
+            <button class="worker known" data-function="FUN_140011B50"><code>140011B50</code><span>TaskMgr policy</span></button>
+            <button class="worker known" data-function="FUN_140011C70"><code>140011C70</code><span>Defender suppression</span></button>
+            <button class="worker known" data-function="FUN_140011CD0"><code>140011CD0</code><span>CD tray loop</span></button>
+            <button class="worker known" data-function="FUN_14000F3C0"><code>14000F3C0</code><span>UI interference scheduler</span></button>
+            <button class="worker known" data-function="FUN_140014DA0"><code>140014DA0</code><span>Embedded wallpaper setter</span></button>
+            <button class="worker known" data-function="FUN_140011A70"><code>140011A70</code><span>Recovery destruction</span></button>
+          </div>
+        </div>
+        <div class="arch-readout" id="archReadout"><span>Selected component</span><h3>Payload controller</h3><p>Hides the console, prevents ordinary sleep, creates a hidden system marker, schedules worker targets, waits 75 seconds, then proceeds toward native hard-error resolution and cleanup.</p></div>
+        <div class="schedule" aria-label="Confirmed worker delays in milliseconds"><span>0</span><span>2000</span><span>4000</span><span>6000</span><span>8000</span><span>10000</span><span>12000</span><span>14000</span><span>16000</span></div>
+        <p class="qualification"><strong>Wrapper confirmed</strong> <code>FUN_14000F370</code> calls <code>Sleep(*param_1)</code>, starts the supplied target in a new thread, then frees the 16-byte context. The observed values are therefore confirmed millisecond delays.</p>
+        <div class="linked-functions">
+          <div><span>Nested UI workers</span><button data-function="FUN_14000ECF0"><code>14000ECF0</code><small>Fullscreen graphics overlay</small></button><button data-function="FUN_14000E160"><code>14000E160</code><small>Desktop icon repositioning</small></button><button data-function="FUN_14000F9A0"><code>14000F9A0</code><small>MessageBox swarm</small></button><button data-function="FUN_140011D30"><code>140011D30</code><small>Cursor displacement loop</small></button></div>
+          <div><span>Callbacks and helpers</span><button data-function="FUN_14000FE60"><code>14000FE60</code><small>Keyboard-hook callback</small></button><button data-function="FUN_14000FF20"><code>14000FF20</code><small>Hidden command runner</small></button><button data-function="FUN_14000B290"><code>14000B290</code><small>Embedded wallpaper extractor</small></button></div>
+          <div><span>Recovery and deletion</span><button data-function="FUN_1400106A0"><code>1400106A0</code><small>Recovery suppression chain</small></button><button data-function="FUN_140011650"><code>140011650</code><small>Boot-critical file deletion</small></button></div>
+        </div>
+        <div class="evidence-feature">
+          <button data-image="assets/evidence/08_6-7.png" data-caption="Findings 06 and 07 — payload controller at 0x140014E40 and SeShutdownPrivilege evidence."><img src="assets/evidence/08_6-7.png" alt="Ghidra payload controller and privilege evidence" loading="lazy"></button>
+          <div><span>Findings 06 / 07</span><h3><code>0x140014E40</code> and <code>SeShutdownPrivilege</code></h3><p>The code calls <code>AdjustTokenPrivileges</code> with zero attributes. It should be described as modifying—and apparently disabling—the privilege, not automatically enabling it.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter policy" id="policy" data-phase="POLICY TAMPERING">
+      <div class="chapter__inner">
+        <div class="section-index"><span>05</span><b>Policy and interface surface</b></div>
+        <p class="question">How else does the sample reduce visibility and control?</p>
+        <p class="answer-strip"><span>Answer</span><strong>Task Manager policy tampering, Defender suppression, keyboard blocking, and disruptive device control.</strong></p>
+        <h2>Policy changes close familiar exits.</h2>
+        <div class="policy-grid">
+          <article><span>Finding 08</span><h3>Task Manager restriction</h3><code>HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\System\DisableTaskMgr</code><p>The code attempts to write <code>DisableTaskMgr = 1</code>, complementing the repeated effort to terminate <code>taskmgr.exe</code>.</p><button class="evidence-button" data-image="assets/evidence/09_8.png" data-caption="Finding 08 — DisableTaskMgr Registry policy evidence.">Inspect evidence</button><button class="evidence-button" data-function="FUN_140011B50">Open full decompile</button></article>
+          <article><span>Defense impairment</span><h3>Defender policies</h3><code>Windows Defender\Real-Time Protection</code><p>Recovered commands target antivirus, realtime, behavior, on-access, and scan-on-enable policy values. Effectiveness depends on Windows version, permissions, and Tamper Protection.</p><button class="evidence-button" data-function="FUN_140011C70">Open full decompile</button></article>
+          <article><span>Finding 09</span><h3>Media Control Interface</h3><code>WINMM.DLL!mciSendStringA</code><p>The recovered worker alternates the literal commands <code>set cdaudio door open</code> and <code>set cdaudio door closed</code> every two seconds, establishing a repeated optical-drive tray action.</p><button class="evidence-button" data-image="assets/evidence/10_9.png" data-caption="Finding 09 — mciSendStringA reference in Ghidra.">Inspect evidence</button><button class="evidence-button" data-function="FUN_140011CD0">Open full decompile</button></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter messages" id="messages" data-phase="MESSAGE PATH">
+      <div class="chapter__inner">
+        <div class="section-index"><span>06</span><b>MessageBox investigation</b></div>
+        <p class="question">Where do the displayed text and window caption come from?</p>
+        <p class="answer-strip"><span>Answer</span><strong><code>FUN_14000FC00</code> selects six text entries at <code>0x14005DCA8</code> and four captions at <code>0x14005E238</code>.</strong></p>
+        <h2>The call path and its “67” strings are now recovered.</h2>
+        <div class="message-lab">
+          <div class="message-window" aria-label="Illustrative MessageBox pointer mapping">
+            <div class="message-title">67 67 67</div>
+            <div class="message-body"><span>!</span><p>SIXTY-SEVEN<small>One of six recovered text variants; captions cycle across four entries.</small></p></div>
+            <div class="message-actions"><button type="button" disabled>OK</button></div>
+          </div>
+          <div><p><code>FUN_14000FC00</code> installs a thread-specific <code>WH_CBT</code> hook, selects text and caption pointers, calls <code>MessageBoxA</code>, then removes the hook.</p><p>The text array contains six variants of “6” and “SIXTY-SEVEN”; the four captions include “6”, “SIXTY-SEVEN”, “SIX SEVEN”, and “67 67 67”. Selection is counter-based, not random.</p><dl class="pointer-ledger"><div><dt>Function</dt><dd>0x14000FC00</dd></div><div><dt>lpText array</dt><dd>0x14005DCA8 · 6 entries</dd></div><div><dt>lpCaption array</dt><dd>0x14005E238 · 4 entries</dd></div></dl><button class="evidence-button" data-function="FUN_14000FC00">Open full decompile</button></div>
+        </div>
+        <div class="evidence-feature evidence-feature--reverse">
+          <button data-image="assets/evidence/11_10-11.png" data-caption="Findings 10 and 11 — MessageBoxA function and lpText pointer array evidence."><img src="assets/evidence/11_10-11.png" alt="Ghidra MessageBox function and pointer-array evidence" loading="lazy"></button>
+          <div><span>Findings 10 / 11</span><h3>Function and pointer source</h3><p>The newly supplied pointer tables resolve the previously unknown strings and preserve the six-text/four-caption selection model.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter mbr" id="mbr" data-phase="RAW DISK CORRUPTION">
+      <div class="chapter__inner">
+        <div class="section-index"><span>07</span><b>Direct physical-disk access</b></div>
+        <p class="question">What happens when a user-space executable reaches sector zero?</p>
+        <p class="answer-strip"><span>Answer</span><strong>A repeated 512-byte zero-write attempt against <code>\\.\PhysicalDrive0</code>.</strong></p>
+        <h2>Five hundred and twelve zero bytes aim at the start of the disk.</h2>
+        <div class="simulation-label">Illustrative simulation · no disk access</div>
+        <div class="sector-lab">
+          <div><div class="sector-head"><span>\\.\PhysicalDrive0 / LBA 0</span><b id="sectorStatus">PRESERVED</b></div><div class="sector-grid" id="sectorGrid" aria-label="Illustrative 512-byte sector visualization"></div><div class="sector-legend"><span>0–445 bootstrap</span><span>446–509 partition table</span><span>510–511 signature</span></div><button id="simulateWipe" type="button">Simulate zero overwrite</button></div>
+          <div class="sector-copy"><code>FUN_140011AA0</code><p>After a ten-second delay, the worker prepares a zero-filled 512-byte buffer, attempts to open <code>\\.\PhysicalDrive0</code> with broad access, writes <code>0x200</code> bytes, sleeps 200 milliseconds, and repeats.</p><p><strong>Legacy MBR:</strong> sector zero contains bootstrap code, four partition entries, and the <code>55 AA</code> signature.</p><p><strong>GPT:</strong> LBA 0 normally contains a protective MBR. The primary GPT header is typically at LBA 1, so this write alone does not prove full GPT destruction.</p></div>
+        </div>
+        <div class="evidence-feature"><button data-image="assets/evidence/12_12.png" data-caption="Finding 12 — MBR overwrite worker at 0x140011AA0."><img src="assets/evidence/12_12.png" alt="Ghidra raw disk overwrite evidence" loading="lazy"></button><div><span>Finding 12</span><h3><code>0x140011AA0</code></h3><p>The clearest code-backed evidence of destructive intent: direct physical-disk access and repeated writes to the beginning of the device.</p></div></div>
+      </div>
+    </section>
+
+    <section class="chapter boot-chain" id="boot-chain" data-phase="BOOT CHAIN FAILURE">
+      <div class="chapter__inner">
+        <div class="section-index"><span>08</span><b>Critical system-file deletion</b></div>
+        <p class="question">Does the wiper rely only on the raw disk write?</p>
+        <p class="answer-strip"><span>Answer</span><strong>No—<code>FUN_140011650</code> also targets boot managers, loaders, BCD stores, kernel files, and Registry hives.</strong></p>
+        <h2>No. It attacks the boot chain from inside the filesystem too.</h2>
+        <div class="simulation-label">Attempted deletions reconstructed from static code</div>
+        <div class="boot-map" id="bootMap"><button data-boot="manager"><span>Boot managers</span><code>bootmgr / bootmgfw.efi</code></button><button data-boot="loader"><span>OS loaders</span><code>winload / winresume</code></button><button data-boot="bcd"><span>Boot configuration</span><code>BCD stores</code></button><button data-boot="kernel"><span>Kernel components</span><code>ntoskrnl / hal / kernel32</code></button><button data-boot="hives"><span>Registry hives</span><code>SAM / SECURITY / SYSTEM / SOFTWARE</code></button></div>
+        <div class="boot-readout" id="bootReadout"><strong>Select a dependency group</strong><p>The function also enumerates drive letters C through Z for EFI and BCD paths. Attempted deletion is not the same as confirmed deletion.</p></div>
+        <button class="trace-delete" id="traceDeletion" type="button">Trace attempted deletion path</button>
+        <div class="evidence-feature evidence-feature--reverse"><button data-image="assets/evidence/13_13.png" data-caption="Finding 13 — critical Windows file deletion routine at 0x140011650."><img src="assets/evidence/13_13.png" alt="Ghidra critical-file deletion evidence" loading="lazy"></button><div><span>Finding 13</span><h3><code>0x140011650</code></h3><p>Boot managers, OS loaders, Registry hives, legacy boot files, kernel components, EFI paths, and BCD stores are targeted. Protection and file locks may prevent individual operations.</p></div></div>
+      </div>
+    </section>
+
+    <section class="chapter hard-error" id="hard-error" data-phase="NATIVE FAILURE">
+      <div class="chapter__inner">
+        <div class="section-index"><span>09</span><b>Native API resolution</b></div>
+        <p class="question">How does the controller attempt the final system-level failure?</p>
+        <p class="answer-strip"><span>Answer</span><strong>It resolves <code>NtRaiseHardError</code> dynamically and passes <code>0xDEADDEAD</code> as ErrorStatus.</strong></p>
+        <h2>The name disappears. The pointer remains.</h2>
+        <div class="resolution-flow"><div><span>01</span><code>LoadLibraryW(L"ntdll")</code></div><div><span>02</span><code>GetProcAddress("NtRaiseHardError")</code></div><div><span>03</span><code>pFVar12 → function pointer</code></div><div class="fatal"><span>04</span><code>(*pFVar12)(0xDEADDEAD, ...)</code></div></div>
+        <div class="error-status"><span>ErrorStatus</span><strong>0xDEADDEAD</strong><p>The value is the first input argument, not the API return value. Ghidra displays four arguments while the recognized signature has six, so the full assembly is required to characterize every parameter.</p></div>
+        <div class="evidence-gallery evidence-gallery--two"><button data-image="assets/evidence/14_14.png" data-caption="Finding 14 — dynamic resolution of NtRaiseHardError."><img src="assets/evidence/14_14.png" alt="Ghidra NtRaiseHardError resolution evidence" loading="lazy"><span>Finding 14 · NtRaiseHardError</span></button><button data-image="assets/evidence/15_15.png" data-caption="Finding 15 — 0xDEADDEAD passed as ErrorStatus."><img src="assets/evidence/15_15.png" alt="Ghidra ErrorStatus evidence" loading="lazy"><span>Finding 15 · 0xDEADDEAD</span></button></div>
+        <div class="cleanup"><div><span>Possible final stage</span><h3>Self-deletion</h3><p>A generated batch file at <code>C:\Windows\Temp\clean.bat</code> waits three seconds, deletes the executable, then deletes itself. The preceding hard-error attempt may prevent the path from completing.</p></div><pre><code>@echo off
+timeout /t 3 &gt;nul
+del "%s"
+del "%%~f0"</code></pre></div>
+      </div>
+    </section>
+
+    <section class="chapter intelligence" id="intelligence" data-phase="FORENSIC REPORT">
+      <div class="chapter__inner">
+        <div class="section-index"><span>10</span><b>Indicators and defensive opportunities</b></div>
+        <p class="question">What can defenders hunt without overstating the evidence?</p>
+        <p class="answer-strip"><span>Answer</span><strong>Named mutexes, disguised filenames, a hidden marker, cleanup artifacts, policy changes, and raw-disk access.</strong></p>
+        <h2>Artifacts become useful only when their limits remain attached.</h2>
+        <div class="intel-columns">
+          <div><h3>Indicators</h3><ul class="ioc-list"><li><code>SF-Verif.pdb</code><span>development artifact</span></li><li><code>Global\SFV67PayloadLeader</code><span>mutex</span></li><li><code>Global\SFVDeployOnce</code><span>mutex</span></li><li><code>SecurityHealthSystray.exe</code><span>executable artifact</span></li><li><code>sfv_done.tmp</code><span>hidden system marker</span></li><li><code>C:\Windows\Temp\clean.bat</code><span>cleanup artifact</span></li><li><code>\\.\PhysicalDrive0</code><span>raw disk target</span></li></ul></div>
+          <div><h3>ATT&amp;CK mapping</h3><ul class="attack-list"><li><b>T1547.001</b><span>Registry Run Keys / Startup Folder</span></li><li><b>T1547.004</b><span>Winlogon Helper DLL</span></li><li><b>T1562.001</b><span>Impair Defenses</span></li><li><b>T1561.002</b><span>Disk Structure Wipe</span></li><li><b>T1485</b><span>Data Destruction</span></li><li><b>T1490</b><span>Inhibit System Recovery</span></li><li><b>T1070.004</b><span>File Deletion</span></li><li><b>T1529</b><span>System Shutdown / Reboot</span></li></ul><p class="not-established"><strong>Not established:</strong> T1562.002 Disable Windows Event Logging.</p></div>
+        </div>
+        <div class="response-strip"><span>Isolate</span><span>Preserve</span><span>Image disks</span><span>Inspect persistence</span><span>Validate backups</span><span>Rebuild untrusted boot chains</span></div>
+      </div>
+    </section>
+
+    <section class="chapter findings" id="findings" data-phase="15 / 15 FINDINGS">
+      <div class="chapter__inner">
+        <div class="section-index"><span>11</span><b>Complete challenge ledger</b></div>
+        <p class="question">Can every challenge answer be traced to a precise finding?</p>
+        <p class="answer-strip"><span>Answer</span><strong>Yes—15 questions map to 15 evidence-backed findings.</strong></p>
+        <h2>Fifteen questions. Fifteen recovered answers.</h2>
+        <div class="finding-ledger"><div><b>01</b><span>Embedded PDB filename</span><code>SF-Verif.pdb</code></div><div><b>02</b><span>Named mutexes</span><code>Global\SFV67PayloadLeader / Global\SFVDeployOnce</code></div><div><b>03</b><span>Persistence configurations</span><code>4</code></div><div><b>04</b><span>Monitoring termination routine</span><code>0x140011BE0</code></div><div><b>05</b><span>Static worker calls</span><code>8</code></div><div><b>06</b><span>Payload controller</span><code>0x140014E40</code></div><div><b>07</b><span>Modified privilege</span><code>SeShutdownPrivilege</code></div><div><b>08</b><span>Task Manager restriction</span><code>...\DisableTaskMgr</code></div><div><b>09</b><span>Media Control Interface API</span><code>mciSendStringA</code></div><div><b>10</b><span>Message display function</span><code>0x14000FC00</code></div><div><b>11</b><span>lpText array</span><code>0x14005DCA8</code></div><div><b>12</b><span>MBR overwrite function</span><code>0x140011AA0</code></div><div><b>13</b><span>System-file deletion function</span><code>0x140011650</code></div><div><b>14</b><span>Native hard-error API</span><code>NtRaiseHardError</code></div><div><b>15</b><span>Hard-error ErrorStatus</span><code>0xDEADDEAD</code></div></div>
+      </div>
+    </section>
+
+    <section class="chapter limitations" id="limitations" data-phase="ANALYTICAL LIMITS">
+      <div class="chapter__inner">
+        <div class="section-index"><span>12</span><b>What the evidence does not prove</b></div>
+        <p class="answer-strip"><span>Answer</span><strong>Static code establishes capability and intent; it does not prove runtime success or attribution.</strong></p>
+        <h2>Capability is not the same as successful execution.</h2>
+        <div class="limits-grid"><p><strong>No dynamic trace</strong>The supplied evidence contains no verified sandbox log, packet capture, or memory-forensics record.</p><p><strong>No confirmed disk outcome</strong>The raw write routine exists; success on a real disk was not independently observed.</p><p><strong>No confirmed deletion outcome</strong>Windows protections and locked files may block attempted removals.</p><p><strong>Remaining unresolved internals</strong>The MessageBox swarm helper <code>FUN_14000FBC0</code>, CBT callback <code>FUN_14000E110</code>, and two copy helpers still require separate decompilation.</p><p><strong>No attribution</strong>PDB names, strings, and mutexes do not identify an author or threat group.</p><p><strong>No propagation proof</strong>The static code does not explain how the fictional 340-system incident spread.</p></div>
+      </div>
+    </section>
+
+    <section class="closing chapter" data-phase="CASE CLOSED">
+      <div class="closing__content"><p class="answer-strip"><span>Verdict</span><strong>AuraWiper is a Windows destructive wiper.</strong></p><p>AuraWiper is designed to attack system availability—not to monetize encrypted files.</p><h2>Windows destructive wiper.</h2><p>The strongest evidence is explicit: raw disk access, a 512-byte zero write, targeted deletion of boot-critical components, and a native hard-error attempt.</p><div class="case-closed"><span>CASE CLOSED</span><strong>AURAWIPER</strong></div><dl><div><dt>Analysis and writeup</dt><dd>Mostafa Galal</dd></div><div><dt>Reverse engineering</dt><dd>Ghidra</dd></div><div><dt>Challenge</dt><dd>MalOps · P4nd3m1cb0y</dd></div><div><dt>Scope</dt><dd>Educational and defensive static malware analysis</dd></div></dl><p class="closing__disclaimer">The Meridian incident is fictional. No malware sample is embedded in this site. All destructive interactions are visual simulations only.</p></div>
+    </section>
+  </main>
+
+  <dialog class="lightbox" id="lightbox">
+    <button type="button" id="lightboxClose" aria-label="Close evidence">Close</button>
+    <img id="lightboxImage" alt="">
+    <p id="lightboxCaption"></p>
+  </dialog>
+
+  <dialog class="decompile-modal" id="decompileModal" aria-labelledby="decompileTitle">
+    <header class="decompile-modal__header">
+      <div><span id="decompileAddress">FUNCTION</span><h2 id="decompileTitle">Decompiled function</h2></div>
+      <div class="decompile-modal__actions"><button type="button" id="copyDecompile">Copy code</button><button type="button" id="decompileClose">Close</button></div>
+    </header>
+    <div class="decompile-modal__body">
+      <aside><span>Static interpretation</span><p id="decompileSummary"></p><dl id="decompileFacts"></dl><p class="decompile-warning">Decompiled output is displayed as inert text and is never executed.</p></aside>
+      <pre tabindex="0"><code id="decompileCode">Loading…</code></pre>
+    </div>
+  </dialog>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
